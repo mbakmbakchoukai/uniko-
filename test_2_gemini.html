@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nikoaimi</title>
+    <link rel="icon" href="https://i.postimg.cc/rpQS9553/AI-logo.png" type="image/png">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+            margin: 0;
+            padding: 0;
+        }
+
+        .chat-container {
+            max-width: 800px;
+            margin: 20px auto;
+            border: 2px solid #3498db;
+            border-radius: 10px;
+            overflow: hidden;
+            background-color: #fff;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+        }
+
+        header {
+            background-color: #3498db;
+            color: #fff;
+            padding: 10px;
+            text-align: center;
+            border-top-left-radius: 10px;
+            border-top-right-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        header img {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            margin-right: 10px;
+        }
+
+        header h1 {
+            margin: 0;
+            font-size: 1.2em;
+        }
+
+        .chatbox {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .message {
+            margin-bottom: 10px;
+            padding: 8px 12px;
+            border-radius: 15px;
+            position: relative;
+        }
+
+        .user {
+            text-align: right;
+            background-color: #3498db;
+            color: #fff;
+            border-top-right-radius: 0;
+            border-bottom-left-radius: 15px;
+            border-bottom-right-radius: 15px;
+            align-self: flex-end;
+        }
+
+        .nikoaimi {
+            text-align: left;
+            background-color: #e74c3c;
+            color: #fff;
+            border-top-left-radius: 0;
+            border-bottom-left-radius: 15px;
+            border-bottom-right-radius: 15px;
+            padding-left: 40px;
+            position: relative;
+            align-self: flex-start;
+        }
+
+        .nikoaimi::before {
+            content: "";
+            position: absolute;
+            top: 50%;
+            left: 10px;
+            transform: translateY(-50%);
+            width: 30px;
+            height: 30px;
+            background-image: url('https://i.postimg.cc/rpQS9553/AI-logo.png');
+            background-size: cover;
+            border-radius: 50%;
+        }
+
+        .user-input {
+            padding: 10px;
+            background-color: #f5f5f5;
+            border-top: 2px solid #3498db;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .user-input button {
+            padding: 8px 16px;
+            background-color: #3498db;
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        .user-input button:hover {
+            background-color: #2980b9;
+        }
+
+        @media screen and (max-width: 600px) {
+            .chat-container {
+                max-width: 90%;
+            }
+            .chatbox {
+                height: 300px;
+            }
+            .nikoaimi::before {
+                width: 20px;
+                height: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="chat-container">
+        <header>
+            <img src="https://i.postimg.cc/rpQS9553/AI-logo.png" alt="AI Logo">
+            <h1>Nikoaimi</h1>
+        </header>
+
+        <div id="chatbox" class="chatbox"></div>
+        <div class="user-input">
+            <button onclick="startRecognition()">Start Recognition</button>
+        </div>
+    </div>
+
+    <audio controls id="audioPlayer" style="display: none;"></audio>
+
+    <script>
+        async function startRecognition() {
+            const recognition = new webkitSpeechRecognition();
+            recognition.lang = 'ja-JA';
+            recognition.interimResults = false;
+            recognition.maxAlternatives = 1;
+
+            recognition.onresult = async (event) => {
+                const result = event.results[0][0].transcript;
+                displayChatMessage("User", result);
+                await fetchResponse(result);
+            };
+
+            recognition.onerror = (event) => {
+                console.error('Speech recognition error occurred:', event.error);
+            };
+
+            recognition.start();
+        }
+
+        async function fetchResponse(userInput) {
+            const response = await fetch('http://localhost:5000/chat', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ userInput: userInput })
+            });
+
+            const data = await response.json();
+            displayChatMessage("Nikoaimi", data.response);
+            speakResponse(data.response);
+        }
+
+        function displayChatMessage(sender, message) {
+            const chatbox = document.getElementById('chatbox');
+            const messageElement = document.createElement('div');
+            messageElement.classList.add('message');
+            messageElement.classList.add(sender.toLowerCase());
+            messageElement.innerText = `${sender}: ${message}`;
+            chatbox.appendChild(messageElement);
+            chatbox.scrollTop = chatbox.scrollHeight;
+        }
+
+        async function speakResponse(responseText) {
+            const speakerId = "14";
+            const ttsQuestApiKey = "E74-116749Z0563";
+            
+            try {
+                const tts = new TtsQuestV3Voicevox(speakerId, responseText, ttsQuestApiKey);
+                tts.addEventListener('loadedmetadata', async () => {
+                    await tts.play();
+                });
+            } catch (error) {
+                console.error('Error while speaking response:', error);
+            }
+        }
+
+        class TtsQuestV3Voicevox extends Audio {
+            constructor(speakerId, text, ttsQuestApiKey) {
+                super();
+                var params = {};
+                params['key'] = ttsQuestApiKey;
+                params['speaker'] = speakerId;
+                params['text'] = text;
+                const query = new URLSearchParams(params);
+                this.#main(this, query);
+            }
+
+            #main(owner, query) {
+                if (owner.src.length > 0) return;
+                var apiUrl = 'https://api.tts.quest/v3/voicevox/synthesis';
+                fetch(apiUrl + '?' + query.toString())
+                .then(response => response.json())
+                .then(response => {
+                    if (typeof response.retryAfter !== 'undefined') {
+                        setTimeout(owner.#main, 1000*(1+response.retryAfter), owner, query);
+                    }
+                    else if (typeof response.mp3StreamingUrl !== 'undefined') {
+                        owner.src = response.mp3StreamingUrl;
+                    }
+                    else if (typeof response.errorMessage !== 'undefined') {
+                        throw new Error(response.errorMessage);
+                    }
+                    else {
+                        throw new Error("serverError");
+                    }
+                });
+            }
+        }
+    </script>
+</body>
+</html>
